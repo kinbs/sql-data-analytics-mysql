@@ -1,0 +1,12 @@
+# 统一按 LF 存储, 避免 Windows 检出时污染仓库
+* text=auto eol=lf
+
+*.sh   text eol=lf
+*.command text eol=lf
+*.sql  text eol=lf
+*.py   text eol=lf
+*.md   text eol=lf
+
+*.bak  binary
+*.pdf  binary
+*.png  binary
