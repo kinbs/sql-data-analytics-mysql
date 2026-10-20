@@ -1,0 +1,21 @@
++---------------+--------------+---------------+------------+
+| TABLE_CATALOG | TABLE_SCHEMA | TABLE_NAME    | TABLE_TYPE |
++---------------+--------------+---------------+------------+
+| def           | gold         | dim_customers | BASE TABLE |
+| def           | gold         | dim_products  | BASE TABLE |
+| def           | gold         | fact_sales    | BASE TABLE |
++---------------+--------------+---------------+------------+
++-----------------+-----------+-------------+--------------------------+
+| COLUMN_NAME     | DATA_TYPE | IS_NULLABLE | CHARACTER_MAXIMUM_LENGTH |
++-----------------+-----------+-------------+--------------------------+
+| customer_key    | int       | YES         |                     NULL |
+| customer_id     | int       | YES         |                     NULL |
+| customer_number | varchar   | YES         |                       50 |
+| first_name      | varchar   | YES         |                       50 |
+| last_name       | varchar   | YES         |                       50 |
+| country         | varchar   | YES         |                       50 |
+| marital_status  | varchar   | YES         |                       50 |
+| gender          | varchar   | YES         |                       50 |
+| birthdate       | date      | YES         |                     NULL |
+| create_date     | date      | YES         |                     NULL |
++-----------------+-----------+-------------+--------------------------+

@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SQL 数据分析项目 · 在 MySQL 上的完整落地</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f6f8fb;color:#0f172a;
+     font-family:'Segoe UI','Microsoft YaHei',system-ui,sans-serif;line-height:1.65;font-size:14.5px}
+.wrap{max-width:1060px;margin:0 auto;padding:0 28px 72px}
+header{background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 55%,#0ea5e9 100%);color:#fff;padding:52px 0 44px;margin-bottom:34px}
+header .wrap{padding-bottom:0}
+.eyebrow{font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;opacity:.82;margin-bottom:12px}
+h1{margin:0 0 14px;font-size:31px;font-weight:700;letter-spacing:-.01em}
+.sub{opacity:.9;font-size:14.5px;max-width:730px}
+.meta{margin-top:22px;display:flex;flex-wrap:wrap;gap:10px}
+.meta span{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.22);
+           padding:5px 12px;border-radius:999px;font-size:12.5px}
+h2{font-size:20px;margin:44px 0 6px;padding-bottom:10px;border-bottom:2px solid #e2e8f0}
+h2 .n{color:#93b4f0;font-weight:700;margin-right:8px}
+h3{font-size:15px;margin:26px 0 10px;color:#1e293b}
+p{margin:9px 0;color:#334155}
+.lead{color:#475569}
+.card{background:#fff;border:1px solid #e6edf5;border-radius:12px;padding:22px 24px;margin:16px 0;
+      box-shadow:0 1px 2px rgba(15,23,42,.04)}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:22px 0 8px}
+.kpi{background:#fff;border:1px solid #e6edf5;border-radius:12px;padding:16px 18px}
+.kpi .k{font-size:11.5px;color:#64748b;letter-spacing:.04em;text-transform:uppercase}
+.kpi .v{font-size:23px;font-weight:700;color:#0f172a;margin-top:5px;letter-spacing:-.02em}
+.kpi .d{font-size:11.5px;color:#94a3b8;margin-top:2px}
+table{width:100%;border-collapse:collapse;font-size:13px;margin:10px 0}
+th{background:#f1f5f9;color:#475569;font-weight:600;padding:9px 11px;border-bottom:1px solid #e2e8f0;font-size:12.5px}
+td{padding:8px 11px;border-bottom:1px solid #eef2f7;color:#334155}
+tbody tr:hover{background:#fafcff}
+code{background:#f1f5f9;padding:1.5px 6px;border-radius:4px;font-size:12.5px;
+     font-family:'Cascadia Mono',Consolas,monospace;color:#1d4ed8}
+pre{background:#0f172a;color:#e2e8f0;padding:16px 18px;border-radius:10px;overflow-x:auto;font-size:12.5px;
+    font-family:'Cascadia Mono',Consolas,monospace;line-height:1.55}
+.note{border-left:3px solid #2563eb;background:#f0f6ff;padding:12px 16px;border-radius:0 8px 8px 0;margin:14px 0;font-size:13.5px}
+.warn{border-left:3px solid #f59e0b;background:#fffbeb;padding:12px 16px;border-radius:0 8px 8px 0;margin:14px 0;font-size:13.5px}
+.ok{border-left:3px solid #16a34a;background:#f0fdf4;padding:12px 16px;border-radius:0 8px 8px 0;margin:14px 0;font-size:13.5px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.tag{display:inline-block;background:#eff6ff;color:#1d4ed8;border-radius:5px;padding:1px 7px;font-size:11.5px;font-weight:600}
+.tag.g{background:#f0fdf4;color:#15803d}
+.tag.a{background:#fffbeb;color:#b45309}
+ul{margin:8px 0;padding-left:22px}li{margin:5px 0;color:#334155}
+footer{margin-top:52px;padding-top:20px;border-top:1px solid #e2e8f0;color:#94a3b8;font-size:12.5px}
+@media(max-width:760px){.kpis{grid-template-columns:1fr 1fr}.grid2{grid-template-columns:1fr}}
+</style></head><body>
+
+<header><div class="wrap">
+  <div class="eyebrow">DataWithBaraa · sql-data-analytics-project</div>
+  <h1>SQL 数据分析项目<br>在本机 MySQL 8.0 上的完整落地</h1>
+  <div class="sub">原仓库是一套基于 SQL Server 的 T-SQL 数据分析教学项目：先做探索性分析（EDA），
+  再做趋势、累计、绩效、占比、分群等进阶分析，最后产出客户与产品两张报表。
+  本文档记录它在本机 MySQL 8.0 上被 1:1 重建、跑通、并对账验证的完整过程与结论。</div>
+  <div class="meta">
+    <span>MySQL 8.0.44</span><span>14 个脚本全部执行通过</span><span>报表与官方快照逐字节对账</span>
+    <span>2026-10-20</span>
+  </div>
+</div></header>
+
+<div class="wrap">
+
+<h2><span class="n">00</span>这个项目原本是什么，为什么不能直接跑</h2>
+<p>仓库里是 <b>gold 层</b>的三张表（客户维表、产品维表、销售事实表）加上 14 个分析脚本。原版全部依赖
+SQL Server：<code>BULK INSERT</code> 导入、<code>DATETRUNC</code> 截断日期、<code>TOP n</code> 取前 N、
+<code>sys.databases</code> 判断库是否存在，以及一个需要 <b>SQL Server 2022+</b> 才能还原的 <code>.bak</code> 备份。</p>
+<div class="warn"><b>本机环境的三个硬约束：</b>没有安装 SQL Server；没有管理员权限（装不了 Developer 版）；
+Docker Desktop 装了但 WSL 被安全策略禁用，Linux 容器起不来。<br>
+所以改用本机已在运行的 <b>MySQL 8.0.44</b> 作为执行引擎——数据模型、脚本逻辑、输出结果全部保持原样，
+只做方言层改写。</div>
+
+<h2><span class="n">01</span>重建数据库</h2>
+<p>SQL Server 是「数据库 + schema」两级结构，MySQL 是「database 即 schema」一级结构。
+原脚本里到处是 <code>gold.dim_customers</code> 这种两段式引用，所以直接把 database 命名为 <code>gold</code>，
+这样 <b>这些表引用一个字都不用改</b>。</p>
+<p>数据用 <code>LOAD DATA INFILE</code> 从 CSV 导入（MySQL 只允许从 <code>secure_file_priv</code> 目录读文件）。
+源 CSV 里有空字段：<b>17 个缺失生日、19 个缺失订单日期、7 个缺失产品分类</b>，
+MySQL 严格模式会把空字符串当非法日期直接报错，所以用 <code>NULLIF</code> 显式转成 NULL，
+与原表「空值即缺失」的业务含义保持一致。</p>
+<div class="ok"><b>导入校验通过：</b>dim_customers <b>18,484</b> 行 · dim_products <b>295</b> 行 · fact_sales <b>60,398</b> 行，与 CSV 记录数完全吻合。</div>
+
+<h2><span class="n">02</span>方言改写：12 处，逐条可查</h2>
+<p>原始脚本保持不动（<code>03_scripts/</code>），改写版单独放在 <code>04_mysql/</code>，每个文件头部都写了对应的映射说明。
+其中两处最容易踩坑，单独解释一下：</p>
+<div class="card">
+<h3>① DATEDIFF 不是 TIMESTAMPDIFF</h3>
+<p>直觉上 <code>DATEDIFF(MONTH, a, b)</code> 应该翻成 <code>TIMESTAMPDIFF(MONTH, a, b)</code>，
+但两者语义不同：SQL Server 数的是<b>跨过的月份边界数</b>（不看日），TIMESTAMPDIFF 数的是<b>满月数</b>。
+比如 2021-01-20 到 2021-02-10，前者得 1，后者得 0。直接替换会让大批客户的 lifespan 少一个月。
+所以改用 <code>PERIOD_DIFF(DATE_FORMAT(b,'%Y%m'), DATE_FORMAT(a,'%Y%m'))</code>，用 YYMM 相减，语义完全等价。
+<code>DATEDIFF(YEAR, ...)</code> 同理，用 <code>YEAR(b) - YEAR(a)</code>。</p>
+<h3>② int / int 的截断行为</h3>
+<p>SQL Server 里两个 int 相除会截断小数（<code>8249/3 = 2749</code>），MySQL 的 <code>/</code> 返回小数。
+为了让报表数值和官方快照一致，改写时用 <code>DIV</code> 复现截断。</p>
+</div>
+<table><thead><tr><th style="text-align:left">T-SQL 原写法</th><th style="text-align:left">MySQL 8 等价写法</th><th style="text-align:left">涉及脚本</th></tr></thead><tbody><tr><td style="text-align:left"><code>TOP n</code></td><td style="text-align:left"><code>LIMIT n（放语句末尾）</code></td><td style="text-align:left">06</td></tr><tr><td style="text-align:left"><code>DATEDIFF(MONTH, a, b)</code></td><td style="text-align:left"><code>PERIOD_DIFF(YYMM_b, YYMM_a)</code></td><td style="text-align:left">03/11/12/13</td></tr><tr><td style="text-align:left"><code>DATEDIFF(YEAR, a, b)</code></td><td style="text-align:left"><code>YEAR(b) - YEAR(a)</code></td><td style="text-align:left">03/12</td></tr><tr><td style="text-align:left"><code>DATETRUNC(month, d)</code></td><td style="text-align:left"><code>CAST(DATE_FORMAT(d,&#x27;%Y-%m-01&#x27;) AS DATE)</code></td><td style="text-align:left">07/08</td></tr><tr><td style="text-align:left"><code>FORMAT(d,&#x27;yyyy-MMM&#x27;)</code></td><td style="text-align:left"><code>DATE_FORMAT(d,&#x27;%Y-%b&#x27;)</code></td><td style="text-align:left">07</td></tr><tr><td style="text-align:left"><code>GETDATE()</code></td><td style="text-align:left"><code>CURDATE()</code></td><td style="text-align:left">03/12/13</td></tr><tr><td style="text-align:left"><code>IF OBJECT_ID(...) DROP VIEW</code></td><td style="text-align:left"><code>DROP VIEW IF EXISTS</code></td><td style="text-align:left">12/13</td></tr><tr><td style="text-align:left"><code>GO 批次分隔符</code></td><td style="text-align:left"><code>删除（MySQL 无批次）</code></td><td style="text-align:left">00/12/13</td></tr><tr><td style="text-align:left"><code>CAST(x AS FLOAT)</code></td><td style="text-align:left"><code>CAST(x AS DOUBLE)</code></td><td style="text-align:left">10/13</td></tr><tr><td style="text-align:left"><code>int / int（截断）</code></td><td style="text-align:left"><code>DIV（复现截断）</code></td><td style="text-align:left">12/13</td></tr><tr><td style="text-align:left"><code>BULK INSERT ... FIRSTROW=2</code></td><td style="text-align:left"><code>LOAD DATA INFILE ... IGNORE 1 LINES</code></td><td style="text-align:left">00</td></tr><tr><td style="text-align:left"><code>database + schema gold</code></td><td style="text-align:left"><code>database 直接命名 gold</code></td><td style="text-align:left">00</td></tr></tbody></table>
+
+<h2><span class="n">03</span>14 个脚本全部执行通过</h2>
+<p>按 01 → 13 的顺序跑完，<b>零报错</b>，每个脚本的完整结果集都落盘在 <code>05_outputs/</code> 下（表格式文本）。
+脚本 12、13 是建视图，不返回结果集，但视图创建成功并可查询。</p>
+
+<h2><span class="n">04</span>对账：改写是否真的等价</h2>
+<p>仓库自带了两张报表的官方快照 CSV（<code>gold.report_customers.csv</code> / <code>gold.report_products.csv</code>），
+这是最好的验收标准。我把 MySQL 生成的报表与它<b>逐行逐列</b>比对：</p>
+<div class="card">
+<table><thead><tr><th style="text-align:left">报表</th><th style="text-align:right">行数（官方 / MySQL）</th><th style="text-align:right">完全一致的列</th><th style="text-align:right">仅因日期变化的列</th><th style="text-align:right">不一致列</th></tr></thead><tbody><tr><td style="text-align:left">report_customers</td><td style="text-align:right">18,482 / 18,482</td><td style="text-align:right">11 列</td><td style="text-align:right">age、age_group、recency</td><td style="text-align:right">0</td></tr><tr><td style="text-align:left">report_products</td><td style="text-align:right">130 / 130</td><td style="text-align:right">14 列</td><td style="text-align:right">recency_in_months</td><td style="text-align:right">0</td></tr></tbody></table>
+</div>
+<div class="ok"><b>结论：改写是可证明等价的。</b>所有金额、数量、订单数、生命周期、分层标签、客单价、月均消费——
+逐字节一致。唯一不同的是 <code>age</code> 和 <code>recency</code> 这两类「跟着当天日期算」的列：
+官方快照生成于 2025-01 左右，今天是 2026-10，<b>偏移量恒为 21 个月</b>（18482 行里最小值、最大值、中位数全部是 21），
+这条一致性正好反证了差异只来自「今天」，而不是逻辑错误。</div>
+
+<h2><span class="n">05</span>分析结论</h2>
+<div class="kpis"><div class="kpi"><div class="k">总销售额</div><div class="v">¥29.36M</div><div class="d">38 个月累计</div></div><div class="kpi"><div class="k">销量</div><div class="v">60,423</div><div class="d">件</div></div><div class="kpi"><div class="k">订单数</div><div class="v">27,659</div><div class="d">客单价 ¥1,061</div></div><div class="kpi"><div class="k">平均售价</div><div class="v">¥486.04</div><div class="d">价格区间跨度大</div></div><div class="kpi"><div class="k">下单客户</div><div class="v">18,484</div><div class="d">共 18,484 位客户</div></div><div class="kpi"><div class="k">在售产品</div><div class="v">295</div><div class="d">SKU</div></div><div class="kpi"><div class="k">数据区间</div><div class="v">2010-12-29 → 2014-01-28</div><div class="d">订单日期</div></div><div class="kpi"><div class="k">报表规模</div><div class="v">18,482 / 130</div><div class="d">客户行 / 产品行</div></div></div>
+
+<h3>业务高度集中在单一品类</h3>
+<p>自行车（Bikes）拿下 <b>96.46%</b> 的销售额，配件和服装加起来不到 4%。
+这意味着营收对单一品类极度敏感——自行车的价格带或供应链波动，会直接放大到整体收入上。</p>
+<div class="card"><svg viewBox="0 0 760 137" width="100%" height="137" font-family="'Segoe UI','Microsoft YaHei',system-ui,sans-serif"><text x="0" y="27.599999999999998" font-size="12.5" fill="#334155">Bikes  96.46%</text><rect x="168" y="6" width="496" height="30" rx="3" fill="#eef2f7"/><rect x="168" y="6" width="496.0" height="30" rx="3" fill="#2563eb"/><text x="672" y="27.599999999999998" font-size="12" fill="#475569">28,316,272</text><text x="0" y="70.6" font-size="12.5" fill="#334155">Accessories  2.39%</text><rect x="168" y="49" width="496" height="30" rx="3" fill="#eef2f7"/><rect x="168" y="49" width="12.3" height="30" rx="3" fill="#2563eb"/><text x="672" y="70.6" font-size="12" fill="#475569">700,262</text><text x="0" y="113.6" font-size="12.5" fill="#334155">Clothing  1.16%</text><rect x="168" y="92" width="496" height="30" rx="3" fill="#eef2f7"/><rect x="168" y="92" width="6.0" height="30" rx="3" fill="#2563eb"/><text x="672" y="113.6" font-size="12" fill="#475569">339,716</text></svg></div>
+
+<h3>市场分布：美国与澳大利亚几乎并列第一</h3>
+<p>两个市场贡献了超过一半的销售额，且体量接近；英国、德国、法国构成第二梯队。
+这种「双核 + 长尾」的结构，适合把资源集中在两个主战场，同时用标准化方案覆盖长尾市场。</p>
+<div class="card"><svg viewBox="0 0 760 266" width="100%" height="266" font-family="'Segoe UI','Microsoft YaHei',system-ui,sans-serif"><text x="0" y="27.599999999999998" font-size="12.5" fill="#334155">United States</text><rect x="168" y="6" width="496" height="30" rx="3" fill="#eef2f7"/><rect x="168" y="6" width="496.0" height="30" rx="3" fill="#0ea5e9"/><text x="672" y="27.599999999999998" font-size="12" fill="#475569">9,162,327</text><text x="0" y="70.6" font-size="12.5" fill="#334155">Australia</text><rect x="168" y="49" width="496" height="30" rx="3" fill="#eef2f7"/><rect x="168" y="49" width="490.5" height="30" rx="3" fill="#0ea5e9"/><text x="672" y="70.6" font-size="12" fill="#475569">9,060,172</text><text x="0" y="113.6" font-size="12.5" fill="#334155">United Kingdom</text><rect x="168" y="92" width="496" height="30" rx="3" fill="#eef2f7"/><rect x="168" y="92" width="183.6" height="30" rx="3" fill="#0ea5e9"/><text x="672" y="113.6" font-size="12" fill="#475569">3,391,376</text><text x="0" y="156.6" font-size="12.5" fill="#334155">Germany</text><rect x="168" y="135" width="496" height="30" rx="3" fill="#eef2f7"/><rect x="168" y="135" width="156.7" height="30" rx="3" fill="#0ea5e9"/><text x="672" y="156.6" font-size="12" fill="#475569">2,894,066</text><text x="0" y="199.6" font-size="12.5" fill="#334155">France</text><rect x="168" y="178" width="496" height="30" rx="3" fill="#eef2f7"/><rect x="168" y="178" width="143.1" height="30" rx="3" fill="#0ea5e9"/><text x="672" y="199.6" font-size="12" fill="#475569">2,643,751</text><text x="0" y="242.6" font-size="12.5" fill="#334155">Canada</text><rect x="168" y="221" width="496" height="30" rx="3" fill="#eef2f7"/><rect x="168" y="221" width="107.1" height="30" rx="3" fill="#0ea5e9"/><text x="672" y="242.6" font-size="12" fill="#475569">1,977,738</text></svg></div>
+
+<h3>年度趋势：2013 年是一次明显的跃升</h3>
+<p>2011 与 2012 相对平稳（约 708 万 / 584 万），
+<b>2013 年跳到 1,634 万</b>，
+是前一年的 2.8 倍。2010 和 2014 只有零星几天数据（首尾边界），不应参与同比判断。</p>
+<div class="card"><svg viewBox="0 0 760 250" width="100%" height="250" font-family="'Segoe UI','Microsoft YaHei',system-ui,sans-serif"><rect x="31.8" y="215.5" width="101.2" height="0.5" rx="3" fill="#2563eb"/><text x="82.4" y="209.5" font-size="11.5" fill="#475569" text-anchor="middle">43,419</text><text x="82.4" y="234" font-size="12" fill="#64748b" text-anchor="middle">2010</text><rect x="180.6" y="128.6" width="101.2" height="87.4" rx="3" fill="#2563eb"/><text x="231.2" y="122.6" font-size="11.5" fill="#475569" text-anchor="middle">7,075,088</text><text x="231.2" y="234" font-size="12" fill="#64748b" text-anchor="middle">2011</text><rect x="329.4" y="143.8" width="101.2" height="72.2" rx="3" fill="#2563eb"/><text x="380.0" y="137.8" font-size="11.5" fill="#475569" text-anchor="middle">5,842,231</text><text x="380.0" y="234" font-size="12" fill="#64748b" text-anchor="middle">2012</text><rect x="478.2" y="14.0" width="101.2" height="202.0" rx="3" fill="#2563eb"/><text x="528.8" y="8.0" font-size="11.5" fill="#475569" text-anchor="middle">16,344,878</text><text x="528.8" y="234" font-size="12" fill="#64748b" text-anchor="middle">2013</text><rect x="627.0" y="215.4" width="101.2" height="0.6" rx="3" fill="#2563eb"/><text x="677.6" y="209.4" font-size="11.5" fill="#475569" text-anchor="middle">45,642</text><text x="677.6" y="234" font-size="12" fill="#64748b" text-anchor="middle">2014</text></svg></div>
+
+<h3>月度走势</h3>
+<p>整体呈上行通道，且能看到明显的季节性起伏；用累计分析（脚本 08）可以看到累计线在每个年初重新起算。</p>
+<div class="card"><svg viewBox="0 0 760 250" width="100%" height="250" font-family="'Segoe UI','Microsoft YaHei',system-ui,sans-serif"><line x1="46" y1="14.0" x2="750" y2="14.0" stroke="#e8eef5"/><text x="38" y="18.0" font-size="10.5" fill="#94a3b8" text-anchor="end">1.9M</text><line x1="46" y1="82.7" x2="750" y2="82.7" stroke="#e8eef5"/><text x="38" y="86.7" font-size="10.5" fill="#94a3b8" text-anchor="end">1.3M</text><line x1="46" y1="151.3" x2="750" y2="151.3" stroke="#e8eef5"/><text x="38" y="155.3" font-size="10.5" fill="#94a3b8" text-anchor="end">0.7M</text><line x1="46" y1="220.0" x2="750" y2="220.0" stroke="#e8eef5"/><text x="38" y="224.0" font-size="10.5" fill="#94a3b8" text-anchor="end">0.0M</text><polygon points="46,220 46.0,220.0 65.0,172.0 84.1,172.4 103.1,170.3 122.1,168.4 141.1,161.7 160.2,141.9 179.2,157.7 198.2,155.7 217.2,157.0 236.3,145.2 255.3,150.6 274.3,149.6 293.4,169.1 312.4,167.8 331.4,182.9 350.4,179.8 369.5,184.5 388.5,162.4 407.5,174.9 426.5,165.9 445.6,170.2 464.6,164.7 483.6,164.4 502.6,154.6 521.7,128.4 540.7,138.1 559.7,106.8 578.8,107.2 597.8,80.4 616.8,40.0 635.8,70.5 654.9,50.9 673.9,62.0 692.9,36.6 711.9,24.5 731.0,14.0 750.0,219.7 750,220" fill="#2563eb" opacity="0.10"/><polyline points="46.0,220.0 65.0,172.0 84.1,172.4 103.1,170.3 122.1,168.4 141.1,161.7 160.2,141.9 179.2,157.7 198.2,155.7 217.2,157.0 236.3,145.2 255.3,150.6 274.3,149.6 293.4,169.1 312.4,167.8 331.4,182.9 350.4,179.8 369.5,184.5 388.5,162.4 407.5,174.9 426.5,165.9 445.6,170.2 464.6,164.7 483.6,164.4 502.6,154.6 521.7,128.4 540.7,138.1 559.7,106.8 578.8,107.2 597.8,80.4 616.8,40.0 635.8,70.5 654.9,50.9 673.9,62.0 692.9,36.6 711.9,24.5 731.0,14.0 750.0,219.7" fill="none" stroke="#2563eb" stroke-width="2"/><text x="46.0" y="237" font-size="10.5" fill="#94a3b8" text-anchor="middle">2010-12</text><text x="122.1" y="237" font-size="10.5" fill="#94a3b8" text-anchor="middle">2011-04</text><text x="198.2" y="237" font-size="10.5" fill="#94a3b8" text-anchor="middle">2011-08</text><text x="274.3" y="237" font-size="10.5" fill="#94a3b8" text-anchor="middle">2011-12</text><text x="350.4" y="237" font-size="10.5" fill="#94a3b8" text-anchor="middle">2012-04</text><text x="426.5" y="237" font-size="10.5" fill="#94a3b8" text-anchor="middle">2012-08</text><text x="502.6" y="237" font-size="10.5" fill="#94a3b8" text-anchor="middle">2012-12</text><text x="578.8" y="237" font-size="10.5" fill="#94a3b8" text-anchor="middle">2013-04</text><text x="654.9" y="237" font-size="10.5" fill="#94a3b8" text-anchor="middle">2013-08</text><text x="731.0" y="237" font-size="10.5" fill="#94a3b8" text-anchor="middle">2013-12</text></svg></div>
+
+<h3>排名：Top 与 Bottom 要看从哪张表出发</h3>
+<p>脚本 06 有一处很值得注意的教学点：<b>从事实表出发</b>做排名，只能看到「至少卖过一次」的产品；
+<b>从维表出发</b>做 LEFT JOIN，才能把「一次都没卖出去」的产品揪出来——它们才是真正的垫底产品。
+本例中确实存在销售额为 0 的在售 SKU，如果只看事实表就会完全漏掉。</p>
+<div class="grid2">
+<div class="card"><h3 style="margin-top:0">销售额 Top 5 产品</h3>
+<table><thead><tr><th style="text-align:left">产品</th><th style="text-align:right">销售额</th></tr></thead><tbody><tr><td style="text-align:left">Mountain-200 Black- 46</td><td style="text-align:right">1,373,454</td></tr><tr><td style="text-align:left">Mountain-200 Black- 42</td><td style="text-align:right">1,363,128</td></tr><tr><td style="text-align:left">Mountain-200 Silver- 38</td><td style="text-align:right">1,339,394</td></tr><tr><td style="text-align:left">Mountain-200 Silver- 46</td><td style="text-align:right">1,298,709</td></tr><tr><td style="text-align:left">Mountain-200 Black- 38</td><td style="text-align:right">1,292,559</td></tr></tbody></table></div>
+<div class="card"><h3 style="margin-top:0">销售额 Bottom 5 产品</h3>
+<table><thead><tr><th style="text-align:left">产品</th><th style="text-align:right">销售额</th></tr></thead><tbody><tr><td style="text-align:left">ML Mountain Frame - Black- 40</td><td style="text-align:right">0</td></tr><tr><td style="text-align:left">Full-Finger Gloves- S</td><td style="text-align:right">0</td></tr><tr><td style="text-align:left">LL Touring Handlebars</td><td style="text-align:right">0</td></tr><tr><td style="text-align:left">HL Road Seat/Saddle</td><td style="text-align:right">0</td></tr><tr><td style="text-align:left">LL Mountain Frame - Black- 44</td><td style="text-align:right">0</td></tr></tbody></table></div>
+</div>
+
+<h3>客户分群：绝大多数是「新客」</h3>
+<p>按项目定义（在网满 12 个月且消费 &gt; 5000 为 VIP）分群：<b>VIP 只有 1,653 人（8.9%）</b>，
+却贡献了相当高的客单；而 <b>14,629 人（79.2%）落在 New</b>，
+平均消费仅 ¥758。这个结构说明客户池很大但转化不足，运营重心应该在「让新客产生第二次、第三次购买」。</p>
+<div class="grid2">
+<div class="card"><svg viewBox="0 0 330 260" width="100%" height="260" font-family="'Segoe UI','Microsoft YaHei',system-ui,sans-serif"><path d="M 118.0 52.0 A 78 78 0 1 1 42.6 109.9" fill="none" stroke="#2563eb" stroke-width="26"/><path d="M 42.6 109.9 A 78 78 0 0 1 76.4 64.0" fill="none" stroke="#0ea5e9" stroke-width="26"/><path d="M 76.4 64.0 A 78 78 0 0 1 118.0 52.0" fill="none" stroke="#93c5fd" stroke-width="26"/><text x="118" y="128" font-size="19" font-weight="600" fill="#0f172a" text-anchor="middle">18,482</text><text x="118" y="148" font-size="11" fill="#94a3b8" text-anchor="middle">customers</text><rect x="228" y="53" width="10" height="10" rx="2" fill="#2563eb"/><text x="245" y="62" font-size="12" fill="#334155">New</text><text x="326" y="62" font-size="12" fill="#64748b" text-anchor="end">14,629</text><rect x="228" y="83" width="10" height="10" rx="2" fill="#0ea5e9"/><text x="245" y="92" font-size="12" fill="#334155">Regular</text><text x="326" y="92" font-size="12" fill="#64748b" text-anchor="end">2,200</text><rect x="228" y="113" width="10" height="10" rx="2" fill="#93c5fd"/><text x="245" y="122" font-size="12" fill="#334155">VIP</text><text x="326" y="122" font-size="12" fill="#64748b" text-anchor="end">1,653</text></svg></div>
+<div class="card"><h3 style="margin-top:0">各群平均消费</h3>
+<table><thead><tr><th style="text-align:left">客群</th><th style="text-align:right">人数</th><th style="text-align:right">人均消费</th></tr></thead><tbody><tr><td style="text-align:left">New</td><td style="text-align:right">14,629</td><td style="text-align:right">¥758</td></tr><tr><td style="text-align:left">Regular</td><td style="text-align:right">2,200</td><td style="text-align:right">¥3,411</td></tr><tr><td style="text-align:left">VIP</td><td style="text-align:right">1,653</td><td style="text-align:right">¥6,510</td></tr></tbody></table></div>
+</div>
+
+<h3>产品分层：强者极强</h3>
+<p>66 个 High-Performer 吃掉了 <b>94.2%</b> 的销售额，
+低绩效产品只有 6 个、贡献 0.12%。
+典型的二八结构，适合把长尾 SKU 做精简。</p>
+<table><thead><tr><th style="text-align:left">产品分层</th><th style="text-align:right">SKU 数</th><th style="text-align:right">销售额</th><th style="text-align:right">占比</th></tr></thead><tbody><tr><td style="text-align:left">High-Performer</td><td style="text-align:right">66</td><td style="text-align:right">27,643,724</td><td style="text-align:right">94.17%</td></tr><tr><td style="text-align:left">Mid-Range</td><td style="text-align:right">58</td><td style="text-align:right">1,671,837</td><td style="text-align:right">5.69%</td></tr><tr><td style="text-align:left">Low-Performer</td><td style="text-align:right">6</td><td style="text-align:right">35,697</td><td style="text-align:right">0.12%</td></tr></tbody></table>
+
+<h3>其他分布</h3>
+<div class="grid2">
+<div class="card"><h3 style="margin-top:0">客户年龄段</h3>
+<table><thead><tr><th style="text-align:left">年龄段</th><th style="text-align:right">人数</th></tr></thead><tbody><tr><td style="text-align:left">50 and above</td><td style="text-align:right">12,829</td></tr><tr><td style="text-align:left">40-49</td><td style="text-align:right">5,636</td></tr><tr><td style="text-align:left">n/a</td><td style="text-align:right">17</td></tr></tbody></table>
+<p style="font-size:12.5px;color:#64748b;margin-top:10px">注意：按今天（2026-10）计算，全部客户年龄都 ≥ 40 岁，
+所以 20-29 / 30-39 两个段为空——这正说明 age 是随日期浮动的列。</p></div>
+<div class="card"><h3 style="margin-top:0">产品成本段</h3>
+<table><thead><tr><th style="text-align:left">成本区间</th><th style="text-align:right">SKU 数</th></tr></thead><tbody><tr><td style="text-align:left">Below 100</td><td style="text-align:right">110</td></tr><tr><td style="text-align:left">100-500</td><td style="text-align:right">101</td></tr><tr><td style="text-align:left">500-1000</td><td style="text-align:right">45</td></tr><tr><td style="text-align:left">Above 1000</td><td style="text-align:right">39</td></tr></tbody></table></div>
+</div>
+
+<h3>同比表现</h3>
+<p>用 <code>LAG()</code> 做年同比：<b>96 个</b>「产品-年」组合同比上升，<b>45 个</b>下降，
+130 个是首个有销售的年份（没有上年可比）。整体向上，但下滑的 45 个需要单独看。</p>
+
+<h2><span class="n">06</span>数据质量提示（原仓库自带，不是改写引入的）</h2>
+<ul>
+<li><b>客户姓名是双重编码的乱码。</b>源 CSV 里 <code>Andrés</code> 存成了 <code>Andr┬®s</code> 这类字节序列，
+官方快照 CSV 里一模一样。要修的话得按 <code>cp1252 → utf-8</code> 重新转码，属于上游数据缺陷。</li>
+<li><b>19 行订单缺失 order_date。</b>其中 2 位客户（key 5323、16040）的全部订单都没有日期，
+会被 <code>WHERE order_date IS NOT NULL</code> 过滤掉，所以报表是 18482 行而不是 18484 行——
+官方快照同样是 18482 行，行为一致。</li>
+<li><b>17 位客户缺失生日</b>，报表里 <code>age</code> 为 NULL、<code>age_group</code> 记为 <code>n/a</code>，与原逻辑一致。</li>
+<li><b>存在 110 岁的出生日期</b>，明显是脏数据，原项目保留未处理。</li>
+<li><b>7 个产品缺失 category / subcategory</b>，已按 NULL 处理，会单独成组出现在分组统计里。</li>
+</ul>
+
+<h2><span class="n">07</span>交付物与复跑方式</h2>
+<div class="card">
+<table><thead><tr><th style="text-align:left">路径</th><th style="text-align:right">内容</th></tr></thead><tbody><tr><td style="text-align:left"><code>04_mysql/*_mysql.sql</code></td><td style="text-align:right">14 个脚本的 MySQL 改写版，每个文件头注明方言映射</td></tr><tr><td style="text-align:left"><code>05_outputs/*.txt</code></td><td style="text-align:right">13 个脚本的完整执行结果（表格式）</td></tr><tr><td style="text-align:left"><code>05_outputs/report_customers.tsv</code></td><td style="text-align:right">客户报表 18482 行 × 15 列</td></tr><tr><td style="text-align:left"><code>05_outputs/report_products.tsv</code></td><td style="text-align:right">产品报表 130 行 × 16 列</td></tr><tr><td style="text-align:left"><code>05_outputs/reconciliation.txt</code></td><td style="text-align:right">与官方快照的逐列对账结果</td></tr><tr><td style="text-align:left"><code>06_validate.py</code></td><td style="text-align:right">对账脚本，可随时重跑</td></tr><tr><td style="text-align:left"><code>03_scripts/</code></td><td style="text-align:right">原始 T-SQL 脚本，未改动</td></tr></tbody></table>
+<h3>从头复跑</h3>
+<pre>cd 04_mysql
+mysql -u root -p &lt; 00_init_database_mysql.sql
+for f in 0[1-9]_*.sql 1[0-3]_*.sql; do mysql -u root gold &lt; "$f"; done
+python ../06_validate.py</pre>
+<p style="margin-bottom:0">前提：CSV 已复制到 <code>secure_file_priv</code> 指向的目录
+（先 <code>SHOW VARIABLES LIKE 'secure_file_priv'</code> 查，再改 <code>00_init_database_mysql.sql</code>
+顶部那一行 <code>@csv_dir</code>）。口令通过环境变量 <code>MYSQL_PWD</code> 传入，不落盘。</p>
+</div>
+
+<div class="note"><b>如果以后装上 SQL Server 2022：</b>直接还原 <code>01_datasets/DataWarehouseAnalytics.bak</code>，
+或者跑原始的 <code>03_scripts/00_init_database.sql</code>，然后把 <code>03_scripts/</code> 下的脚本原样执行即可——
+那套文件我一份都没动。</div>
+
+<footer>基于 DataWithBaraa / sql-data-analytics-project（MIT）在本机 MySQL 8.0.44 上的复现 · 报告生成于 2026-10-20</footer>
+</div></body></html>
