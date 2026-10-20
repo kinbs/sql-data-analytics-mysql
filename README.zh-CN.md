@@ -18,7 +18,8 @@
 | report_products | 130 行 × 16 列 |
 | 与官方快照对账 | 客户报表 11/14 列、产品报表 14/15 列**逐字节一致**；仅 age / recency 随「今天」变化，偏移恒为 21 个月 |
 
-分析结论见 `05_outputs/analysis_report.html`（用浏览器打开）。
+分析结论见 [`05_outputs/analysis_report.html`](05_outputs/analysis_report.html)。
+GitHub 上它只显示为源码，下载后用浏览器打开才能正常渲染。
 
 ## 目录
 

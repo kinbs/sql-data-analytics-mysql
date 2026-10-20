@@ -33,6 +33,9 @@ The only columns that differ are `age` and `recency` — they're computed from *
 snapshots were generated around 2025-01. The offset is **exactly 21 months on every one of the 18,482 rows**
 (min = max = median), which is the proof that the difference comes from the clock, not from the logic.
 
+The generated analysis report lives at [`05_outputs/analysis_report.html`](05_outputs/analysis_report.html).
+GitHub shows it as source — download it and open it in a browser to see it rendered.
+
 ## Layout
 
 ```
